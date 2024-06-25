@@ -29,20 +29,88 @@ let topPipeImg;
 let bottomPipeImg;
 
 //physics
-let velocityX = -20; //pipes moving left speed
+let velocityX = -15; //pipes moving left speed
 let velocityY = 0; //bird jump speed
-let gravity = 0.8;
+let gravity = 0.6;
 
 let gameOver = false;
+let gameEndOK = false;
 let score = 0;
 
+const GOAL_SCORE = 4;
+const GAME_TOTAL_PROGRESS = 600;
+let currentProgress = 0;
+// define utils funtions
+// async timeout
 function setTimeoutAsync(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// promise with not blocked execution
+function runPromiseWithFunctorLoop(functor, needToStop) {
+	return new Promise((resolve, reject) => {
+		async function loop() {
+			for (;;) {
+				try {
+					await functor();
+					const state = needToStop();
+					switch (state) {
+						case "SUCCEED":
+							return resolve(true);
+						case "FAILED":
+							return resolve(false);
+						case "ONPLAYING":
+						default:
+							break;
+					}
+				} catch (err) {
+					reject();
+				}
+				setTimeout(loop, 0);
+			}
+		}
+		loop();
+	});
+}
+
+// promise with not blocked but game main loop
+function runPromiseWithFunctorGameLoop(functor, needToStop) {
+	return new Promise((resolve, reject) => {
+		async function loop() {
+			requestAnimationFrame(functor);
+			const state = needToStop();
+			switch (state) {
+				case "SUCCEED":
+					return resolve(true);
+				case "FAILED":
+					return resolve(false);
+				case "ONPLAYING":
+				default:
+			}
+			setTimeout(loop, 25);
+		}
+		loop();
+	});
+}
+
 window.onload = async function () {
-	await displayCountDown();
-	await playGame();
+	//이렇게 하면 간단하게 await를 써서 블럭되지 않으면서 화면 전환을 함수별로 만들어 쓸수 있다.
+	await runPromiseWithFunctorLoop(displayCountDown, () => {
+		return "SUCCEED";
+	});
+	await initGame();
+	const result = await runPromiseWithFunctorGameLoop(gameLoop, () => {
+		if (gameOver) return "FAILED";
+		if (gameEndOK) return "SUCCEED";
+		return "ONPLAYING";
+	});
+	if (result) {
+		// play party party
+		// then play outro
+	} else {
+		//display retry ??
+		//when hit Y, reload this frame
+	}
 };
 
 async function displayCountDown() {
@@ -50,28 +118,53 @@ async function displayCountDown() {
 	board.height = boardHeight;
 	board.width = boardWidth;
 	context = board.getContext("2d"); //used for drawing on the board
-	for (let count = 3; count >= 0; count--) {
+	for (let count = 4; count >= 0; count--) {
+		birdImg = new Image();
+		birdImg.src = "./flappybird.png";
+		birdImg.onload = function () {
+			context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+		};
 		context.clearRect(0, 0, board.width, board.height);
-		context.font = "48px Arial";
+		context.font = "80px Arial";
 		context.fillStyle = "black";
 		context.textAling = "center";
-		console.log(count);
-		context.fillText(count, board.width / 2, board.height / 2);
+		switch (count) {
+			case 4:
+				const readyText = "READY?";
+				const readyTextWidth = context.measureText(readyText).width;
+				context.fillText(
+					readyText,
+					board.width / 2 - readyTextWidth / 2,
+					board.height / 2,
+				);
+				break;
+			case 3:
+			case 2:
+			case 1:
+				context.fillText(count, board.width / 2, board.height / 2);
+				break;
+			case 0:
+				const goText = "START!";
+				const goTextWidth = context.measureText(goText).width;
+				context.fillText(
+					goText,
+					board.width / 2 - goTextWidth / 2,
+					board.height / 2,
+				);
+				break;
+			default:
+				break;
+		}
 		await setTimeoutAsync(1000);
 	}
 }
 
-async function playGame() {
+async function initGame() {
 	board = document.getElementById("board");
 	board.height = boardHeight;
 	board.width = boardWidth;
 	context = board.getContext("2d"); //used for drawing on the board
 
-	//draw flappy bird
-	// context.fillStyle = "green";
-	// context.fillRect(bird.x, bird.y, bird.width, bird.height);
-
-	//load images
 	birdImg = new Image();
 	birdImg.src = "./flappybird.png";
 	birdImg.onload = function () {
@@ -83,19 +176,47 @@ async function playGame() {
 
 	bottomPipeImg = new Image();
 	bottomPipeImg.src = "./bottompipe.png";
-
-	requestAnimationFrame(update);
-	setInterval(placePipes, 3000); //every 1.5 seconds
 	document.addEventListener("keydown", moveBird);
+
+	currentProgress = 0;
+	setInterval(placePipes, 3000); //every 1.5 seconds
+	requestAnimationFrame(gameLoop);
+
+	function moveBird(e) {
+		if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
+			velocityY = -6;
+			//if (gameOver) {
+			//	window.location.reload();
+			//}
+		}
+	}
 }
 
-function update() {
-	requestAnimationFrame(update);
-	if (gameOver) {
-		return;
-	}
-	context.clearRect(0, 0, board.width, board.height);
+function placePipes() {
+	let randomPipeY = pipeY - pipeHeight / 7 - Math.random() * (pipeHeight / 2);
+	let openingSpace = board.height / 7;
+	let topPipe = {
+		img: topPipeImg,
+		x: pipeX,
+		y: randomPipeY,
+		width: pipeWidth,
+		height: pipeHeight,
+		passed: false,
+	};
+	pipeArray.push(topPipe);
+	let bottomPipe = {
+		img: bottomPipeImg,
+		x: pipeX,
+		y: randomPipeY + pipeHeight + openingSpace,
+		width: pipeWidth,
+		height: pipeHeight,
+		passed: false,
+	};
+	pipeArray.push(bottomPipe);
+}
 
+function gameLoop() {
+	context.clearRect(0, 0, board.width, board.height);
 	//bird
 	velocityY += gravity;
 	// bird.y += velocityY;
@@ -125,72 +246,21 @@ function update() {
 	while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
 		pipeArray.shift(); //removes first element from the array
 	}
-	//score
-	context.fillStyle = "white";
-	context.font = "45px sans-serif";
-	context.fillText(score, 5, 45);
+	// context.fillStyle = "white";
+	// context.font = "45px sans-serif";
+	// context.fillText(score, 5, 45);
 
-	if (gameOver) {
-		context.fillText("GAME OVER", 5, 90);
+	if (score >= GOAL_SCORE && currentProgress >= GAME_TOTAL_PROGRESS) {
+		gameEndOK = true;
+	}
+	currentProgress++;
+
+	function detectCollision(a, b) {
+		return (
+			a.x < b.x + b.width && //a's top left corner doesn't reach b's top right corner
+			a.x + a.width > b.x && //a's top right corner passes b's top left corner
+			a.y < b.y + b.height && //a's top left corner doesn't reach b's bottom left corner
+			a.y + a.height > b.y
+		); //a's bottom left corner passes b's top left corner
 	}
 }
-//document.getElementById('stop-button').addEventListener('click', function() {
-//  document.querySelector('.scrolling-background').style.animationPlayState = 'paused';
-//});
-//
-//document.getElementById('start-button').addEventListener('click', function() {
-//  document.querySelector('.scrolling-background').style.animationPlayState = 'running';
-//});
-function placePipes() {
-	if (gameOver) {
-		return;
-	}
-
-	let randomPipeY = pipeY - pipeHeight / 8 - Math.random() * (pipeHeight / 2);
-	let openingSpace = board.height / 8;
-
-	let topPipe = {
-		img: topPipeImg,
-		x: pipeX,
-		y: randomPipeY,
-		width: pipeWidth,
-		height: pipeHeight,
-		passed: false,
-	};
-	pipeArray.push(topPipe);
-
-	let bottomPipe = {
-		img: bottomPipeImg,
-		x: pipeX,
-		y: randomPipeY + pipeHeight + openingSpace,
-		width: pipeWidth,
-		height: pipeHeight,
-		passed: false,
-	};
-	pipeArray.push(bottomPipe);
-}
-
-function moveBird(e) {
-	if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
-		//jump
-		velocityY = -6;
-
-		//reset game
-		if (gameOver) {
-			bird.y = birdY;
-			pipeArray = [];
-			score = 0;
-			gameOver = false;
-		}
-	}
-}
-
-function detectCollision(a, b) {
-	return (
-		a.x < b.x + b.width && //a's top left corner doesn't reach b's top right corner
-		a.x + a.width > b.x && //a's top right corner passes b's top left corner
-		a.y < b.y + b.height && //a's top left corner doesn't reach b's bottom left corner
-		a.y + a.height > b.y
-	); //a's bottom left corner passes b's top left corner
-}
-
