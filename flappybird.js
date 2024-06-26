@@ -37,9 +37,10 @@ let gameOver = false;
 let gameEndOK = false;
 let score = 0;
 
-const GOAL_SCORE = 4;
-const GAME_TOTAL_PROGRESS = 600;
+const GOAL_SCORE = 8;
+const GAME_TOTAL_PROGRESS = 200;
 let currentProgress = 0;
+
 // define utils funtions
 // async timeout
 function setTimeoutAsync(ms) {
@@ -47,7 +48,7 @@ function setTimeoutAsync(ms) {
 }
 
 // promise with not blocked execution
-function runPromiseWithFunctorLoop(functor, needToStop) {
+function runPromiseWithFunctorLoop(functor, needToStop, removeEventHandler) {
 	return new Promise((resolve, reject) => {
 		async function loop() {
 			for (;;) {
@@ -56,8 +57,10 @@ function runPromiseWithFunctorLoop(functor, needToStop) {
 					const state = needToStop();
 					switch (state) {
 						case "SUCCEED":
+							removeEventHandler();
 							return resolve(true);
 						case "FAILED":
+							removeEventHandler();
 							return resolve(false);
 						case "ONPLAYING":
 						default:
@@ -74,15 +77,21 @@ function runPromiseWithFunctorLoop(functor, needToStop) {
 }
 
 // promise with not blocked but game main loop
-function runPromiseWithFunctorGameLoop(functor, needToStop) {
+function runPromiseWithFunctorGameLoop(
+	functor,
+	needToStop,
+	removeEventHandler,
+) {
 	return new Promise((resolve, reject) => {
 		async function loop() {
 			requestAnimationFrame(functor);
 			const state = needToStop();
 			switch (state) {
 				case "SUCCEED":
+					removeEventHandler();
 					return resolve(true);
 				case "FAILED":
+					removeEventHandler();
 					return resolve(false);
 				case "ONPLAYING":
 				default:
@@ -94,24 +103,86 @@ function runPromiseWithFunctorGameLoop(functor, needToStop) {
 }
 
 window.onload = async function () {
+	const displayIntroScene = displayScenes(introScenes);
+	const displayOutroScene = displayScenes(outroScenes);
+	//console.log(displayScenes(introScenes));
 	//이렇게 하면 간단하게 await를 써서 블럭되지 않으면서 화면 전환을 함수별로 만들어 쓸수 있다.
-	await runPromiseWithFunctorLoop(displayCountDown, () => {
-		return "SUCCEED";
-	});
+	//play game scene first
+	await runPromiseWithFunctorLoop(
+		displayIntroScene,
+		() => {
+			return "SUCCEED";
+			//if (sceneIndex > TOTAL_SCENE_COUNT) {
+			//	//키보드 이벤트 핸들러 해제
+			//	return "SUCCEED";
+			//}
+			//return "ONPLAYING";
+		},
+		() => {
+			document.removeEventListener("keydown", nextScene);
+		},
+	);
+	await runPromiseWithFunctorLoop(
+		displayCountDown,
+		() => {
+			return "SUCCEED";
+		},
+		() => {},
+	);
 	await initGame();
-	const result = await runPromiseWithFunctorGameLoop(gameLoop, () => {
-		if (gameOver) return "FAILED";
-		if (gameEndOK) return "SUCCEED";
-		return "ONPLAYING";
-	});
+	const result = await runPromiseWithFunctorGameLoop(
+		gameLoop,
+		() => {
+			if (gameOver) return "FAILED";
+			if (gameEndOK) return "SUCCEED";
+			return "ONPLAYING";
+		},
+		() => {
+			document.removeEventListener("keydown", moveBird);
+		},
+	);
 	if (result) {
-		// play party party
-		// then play outro
+		// play SUCCESS effect
+		// and then play outro
 	} else {
 		//display retry ??
-		//when hit Y, reload this frame
+		//when hit Y, reload this frame, so simple
 	}
 };
+
+let currentSceneIndex = 0;
+let oldIntroSceneIndex = 0;
+const introScenes = [
+	// {
+	//   name : 'scene-01.png',
+	//   x: ???,
+	//   y: ???,
+	//   width: ???,
+	//   height: ???
+	// }
+];
+const outroScenes = [];
+function displayScenes(scenes) {
+	currentSceneIndex = 0;
+	oldIntroSceneIndex = currentSceneIndex;
+	document.addEventListener("keydown", nextScene());
+	//아래의 이미지를 표시해주는 함수를 리턴
+	board = document.getElementById("board");
+	board.height = boardHeight;
+	board.width = boardWidth;
+	context = board.getContext("2d"); //used for drawing on the board
+	return () => {
+		// 만약 oldIntroSceneIndex이랑 currentIntroSceneIndex랑 다르면 canvas에 fadeOut효과 추가
+		// currentIntroSceneIndex 에 따라 이미지 표시, 필요하면 fadeIn효가 추가
+		// oldIntroSceneIndex에 currentIntroSceneIndex 저장
+		console.log("here");
+	};
+}
+
+async function nextScene() {
+	//스페이스나 엔터키면 인덱스 증가
+	//하지만 최대 사이즈 +1을 넘어 갈 수는 없음
+}
 
 async function displayCountDown() {
 	board = document.getElementById("board");
@@ -181,19 +252,25 @@ async function initGame() {
 	currentProgress = 0;
 	setInterval(placePipes, 3000); //every 1.5 seconds
 	requestAnimationFrame(gameLoop);
+}
 
-	function moveBird(e) {
-		if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
-			velocityY = -6;
-			//if (gameOver) {
-			//	window.location.reload();
-			//}
-		}
+function moveBird(e) {
+	if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
+		velocityY = -6;
 	}
 }
 
 function placePipes() {
-	let randomPipeY = pipeY - pipeHeight / 7 - Math.random() * (pipeHeight / 2);
+	let pipeBottomFlag = Math.random() > 0.5 ? true : false;
+	let pipeTopFlag = Math.random() > 0.5 ? true : false;
+	if (!pipeBottomFlag && !pipeTopFlag) {
+		pipeTopFlag = true;
+		pipeBottomFlag = true;
+	}
+	let randomPipeY =
+		pipeY -
+		pipeHeight / 7 -
+		Math.min(Math.random() * Math.random(), 0.5) * (pipeHeight / 2);
 	let openingSpace = board.height / 7;
 	let topPipe = {
 		img: topPipeImg,
@@ -203,7 +280,7 @@ function placePipes() {
 		height: pipeHeight,
 		passed: false,
 	};
-	pipeArray.push(topPipe);
+	if (pipeTopFlag) pipeArray.push(topPipe);
 	let bottomPipe = {
 		img: bottomPipeImg,
 		x: pipeX,
@@ -212,7 +289,7 @@ function placePipes() {
 		height: pipeHeight,
 		passed: false,
 	};
-	pipeArray.push(bottomPipe);
+	if (pipeBottomFlag) pipeArray.push(bottomPipe);
 }
 
 function gameLoop() {
@@ -246,9 +323,6 @@ function gameLoop() {
 	while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
 		pipeArray.shift(); //removes first element from the array
 	}
-	// context.fillStyle = "white";
-	// context.font = "45px sans-serif";
-	// context.fillText(score, 5, 45);
 
 	if (score >= GOAL_SCORE && currentProgress >= GAME_TOTAL_PROGRESS) {
 		gameEndOK = true;
