@@ -1,11 +1,27 @@
 body {
+  padding: 0;
+  margin: 0;
+  overflow: none;
   font-family: 'Courier New', Courier, monospace;
   text-align: center;
-  background-image: url("./bg_game2.svg");
+  background-image: none;
+  background-color: black;
+  /*background-image: url("./bg_game2.svg");*/
   background-repeat: repeat-x;
   background-position: 0 0;
-  background-size: auto 800px;
+  background-size: cover;
   animation: scroll 10s linear infinite;
+  height: 100vh;
+  width: 100%;
+}
+
+#message {
+  position: absolute;
+  display: flex;
+  font-size: 4em;
+  color: white;
+  opacity: 0;
+  transition: opacity 3s;
 }
 
 #board {
@@ -18,6 +34,6 @@ body {
   }
 
   to {
-    background-position: -100% 0;
+    background-position: 200% 0;
   }
 }

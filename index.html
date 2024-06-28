@@ -11,13 +11,28 @@
 
 <body>
   <canvas id="board"></canvas>
-  <audio id="bgmPlayer" src="./bgm.mp3" preload="auto"></audio>
+  <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+    <div id="message">Congratulations</div>
+  </div>
+  <audio id="bgmPlayer" src="./bgm.mp3" preload="auto" loop></audio>
+  <audio id="failPlayer" src="./fail.mp3" preload="auto"></audio>
+  <audio id="successPlayer" src="./success.mp3" preload="auto"></audio>
+  <audio id="applausePlayer" src="./success2.mp3" preload="auto"></audio>
   <audio id="jumpPlayer" src="./jump.mp3" preload="auto"></audio>
   <style>
     canvas {
       position: absolute;
       top: 0px;
       left: 0px;
+    }
+
+    #message {
+      display: flex;
+      font-size: 8em;
+      font-weight: bold;
+      color: black;
+      opacity: 0;
+      transition: opacity 3s;
     }
   </style>
 </body>
