@@ -5,8 +5,9 @@ let boardHeight = 800;
 let context;
 
 //bird
-let birdWidth = 34; //width/height ratio = 408/228 = 17/12
-let birdHeight = 24;
+let birdSpriteFilename = "./flappybird.svg";
+let birdHeight = 60;
+let birdWidth = birdHeight * 0.86; //width/height ratio = 408/228 = 17/12
 let birdX = boardWidth / 8;
 let birdY = boardHeight / 2;
 let birdImg;
@@ -103,25 +104,31 @@ function runPromiseWithFunctorGameLoop(
 }
 
 window.onload = async function () {
-	const displayIntroScene = displayScenes(introScenes);
-	const displayOutroScene = displayScenes(outroScenes);
+	navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+		const bgmPlayer = document.getElementById("bgmPlayer");
+		bgmPlayer.volume = 0.1;
+		bgmPlayer.play();
+	});
+	//const displayIntroScene = displayScenes(introScenes);
+	//const displayOutroScene = displayScenes(outroScenes);
 	//console.log(displayScenes(introScenes));
 	//이렇게 하면 간단하게 await를 써서 블럭되지 않으면서 화면 전환을 함수별로 만들어 쓸수 있다.
 	//play game scene first
-	await runPromiseWithFunctorLoop(
-		displayIntroScene,
-		() => {
-			return "SUCCEED";
-			//if (sceneIndex > TOTAL_SCENE_COUNT) {
-			//	//키보드 이벤트 핸들러 해제
-			//	return "SUCCEED";
-			//}
-			//return "ONPLAYING";
-		},
-		() => {
-			document.removeEventListener("keydown", nextScene);
-		},
-	);
+	//await runPromiseWithFunctorLoop(
+	//	displayIntroScene,
+	//	() => {
+	//		//return "SUCCEED";
+	//		if (currentSceneIndex > TOTAL_SCENE_COUNT) {
+	//			//키보드 이벤트 핸들러 해제
+	//			return "SUCCEED";
+	//		}
+	//		return "ONPLAYING";
+	//	},
+	//	() => {
+	//		document.removeEventListener("keydown", nextScene);
+	//	},
+	//);
+	await displayScenes(introScenes);
 	await runPromiseWithFunctorLoop(
 		displayCountDown,
 		() => {
@@ -152,38 +159,65 @@ window.onload = async function () {
 
 let currentSceneIndex = 0;
 let oldIntroSceneIndex = 0;
+
 const introScenes = [
-	// {
-	//   name : 'scene-01.png',
-	//   x: ???,
-	//   y: ???,
-	//   width: ???,
-	//   height: ???
-	// }
+	{
+		name: "./intro/intro-01.svg",
+		x: 0,
+		y: 0,
+		width: 1910,
+		height: 1000,
+	},
 ];
 const outroScenes = [];
-function displayScenes(scenes) {
-	currentSceneIndex = 0;
-	oldIntroSceneIndex = currentSceneIndex;
-	document.addEventListener("keydown", nextScene());
-	//아래의 이미지를 표시해주는 함수를 리턴
-	board = document.getElementById("board");
-	board.height = boardHeight;
-	board.width = boardWidth;
-	context = board.getContext("2d"); //used for drawing on the board
-	return () => {
-		// 만약 oldIntroSceneIndex이랑 currentIntroSceneIndex랑 다르면 canvas에 fadeOut효과 추가
-		// currentIntroSceneIndex 에 따라 이미지 표시, 필요하면 fadeIn효가 추가
-		// oldIntroSceneIndex에 currentIntroSceneIndex 저장
-		console.log("here");
-	};
-}
 
-async function nextScene() {
-	//스페이스나 엔터키면 인덱스 증가
-	//하지만 최대 사이즈 +1을 넘어 갈 수는 없음
-}
+async function displayScenes(scenes) {
+	const sceneImg = new Image();
+	for (const imageConfig of scenes) {
+		board = document.getElementById("board");
+		board.height = imageConfig.height;
+		board.width = imageConfig.width;
+		context = board.getContext("2d"); //used for drawing on the board
+		sceneImg.src = imageConfig.name;
+		sceneImg.onload = function () {
+			context.drawImage(
+				sceneImg,
+				imageConfig.x,
+				imageConfig.y,
+				imageConfig.width,
+				imageConfig.height,
+			);
+		};
+		await waitForKeyPress();
+		await fadeOutImage(board, sceneImg);
+	}
+	function waitForKeyPress() {
+		return new Promise((resolve) => {
+			function onKeyPress(event) {
+				document.removeEventListener("keydown", onKeyPress);
+				resolve(event);
+			}
 
+			document.addEventListener("keydown", onKeyPress);
+		});
+	}
+	function fadeOutImage(canvas, image) {
+		return new Promise((resolve, reject) => {
+			var opacity = 1.0;
+			var fadeOutInterval = setInterval(function () {
+				context.clearRect(0, 0, canvas.width, canvas.height);
+				context.globalAlpha = opacity;
+				context.drawImage(image, 0, 0, canvas.width, canvas.height);
+				opacity -= 0.02;
+				if (opacity <= 0) {
+					clearInterval(fadeOutInterval);
+					context.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas completely
+					resolve();
+				}
+			}, 1); // Adjust the interval time (50ms) for different fade-out speeds
+		});
+	}
+}
 async function displayCountDown() {
 	board = document.getElementById("board");
 	board.height = boardHeight;
@@ -191,7 +225,7 @@ async function displayCountDown() {
 	context = board.getContext("2d"); //used for drawing on the board
 	for (let count = 4; count >= 0; count--) {
 		birdImg = new Image();
-		birdImg.src = "./flappybird.png";
+		birdImg.src = birdSpriteFilename;
 		birdImg.onload = function () {
 			context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 		};
@@ -237,7 +271,7 @@ async function initGame() {
 	context = board.getContext("2d"); //used for drawing on the board
 
 	birdImg = new Image();
-	birdImg.src = "./flappybird.png";
+	birdImg.src = birdSpriteFilename;
 	birdImg.onload = function () {
 		context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 	};
@@ -248,15 +282,17 @@ async function initGame() {
 	bottomPipeImg = new Image();
 	bottomPipeImg.src = "./bottompipe.png";
 	document.addEventListener("keydown", moveBird);
-
 	currentProgress = 0;
 	setInterval(placePipes, 3000); //every 1.5 seconds
 	requestAnimationFrame(gameLoop);
 }
 
 function moveBird(e) {
+	const jumpPlayer = document.getElementById("jumpPlayer");
 	if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
 		velocityY = -6;
+		jumpPlayer.volume = 0.1;
+		jumpPlayer.play();
 	}
 }
 
@@ -271,7 +307,7 @@ function placePipes() {
 		pipeY -
 		pipeHeight / 7 -
 		Math.min(Math.random() * Math.random(), 0.5) * (pipeHeight / 2);
-	let openingSpace = board.height / 7;
+	let openingSpace = board.height / 5;
 	let topPipe = {
 		img: topPipeImg,
 		x: pipeX,
