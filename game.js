@@ -5,8 +5,8 @@ let boardHeight = window.innerHeight;
 let context;
 
 //bird
-let birdSpriteFilename = "./flappybird.svg";
-let birdHeight = 60;
+let birdSpriteFilename = "./assets/player.svg";
+let birdHeight = 100;
 let birdWidth = birdHeight * 0.86; //width/height ratio = 408/228 = 17/12
 let birdX = boardWidth / 8;
 let birdY = boardHeight / 2;
@@ -39,7 +39,8 @@ let gameEndOK = false;
 let score = 0;
 
 const GOAL_SCORE = 6;
-const GAME_TOTAL_PROGRESS = 600;
+let placePipeInterval = 1500;
+const GAME_TOTAL_PROGRESS = 700;
 let currentProgress = 0;
 
 let progressBarImg;
@@ -116,6 +117,7 @@ async function playCongrat() {
 		const canvas = document.getElementById("board");
 		const ctx = canvas.getContext("2d");
 		const message = document.getElementById("message");
+		message.innerText = LANGUAGE_DATA.CONGRAT;
 		let animationId;
 		canvas.width = window.innerWidth;
 		canvas.height = window.innerHeight;
@@ -196,52 +198,56 @@ async function playCongrat() {
 
 window.onload = async function () {
 	//await playCongrat();
-	await navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
-		const bgmPlayer = document.getElementById("bgmPlayer");
-		bgmPlayer.volume = 0.1;
-		bgmPlayer.play();
-	});
-	await displayScenes(introScenes, {
-		fadeIn: true,
-		fadeOut: true,
-		fadeInDelay: 2,
-		fadeOutDelay: 2,
-	});
-	await makeBackgroundImage();
-	await runPromiseWithFunctorLoop(
-		displayCountDown,
-		() => {
-			return "SUCCEED";
-		},
-		() => {},
-	);
-	await initGame();
-	const result = await runPromiseWithFunctorGameLoop(
-		gameLoop,
-		() => {
-			if (gameOver) return "FAILED";
-			if (gameEndOK) return "SUCCEED";
-			return "ONPLAYING";
-		},
-		() => {
-			document.removeEventListener("keydown", moveBird);
-		},
-	);
-	if (result) {
-		await playCongrat();
-		playApplause();
-		document.body.style.backgroundImage = "none";
-		document.body.style.backgroundColor = "black";
-		await displayScenes(outroScenes, {
+	try {
+		await navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+			const bgmPlayer = document.getElementById("bgmPlayer");
+			bgmPlayer.volume = 0.1;
+			bgmPlayer.play();
+		});
+		await displayScenes(introScenes, {
 			fadeIn: true,
 			fadeOut: true,
-			fadeInDelay: 20,
+			fadeInDelay: 2,
 			fadeOutDelay: 2,
 		});
-	} else {
-		await playFailed();
+		await makeBackgroundImage();
+		await runPromiseWithFunctorLoop(
+			displayCountDown,
+			() => {
+				return "SUCCEED";
+			},
+			() => {},
+		);
+		await initGame();
+		const result = await runPromiseWithFunctorGameLoop(
+			gameLoop,
+			() => {
+				if (gameOver) return "FAILED";
+				if (gameEndOK) return "SUCCEED";
+				return "ONPLAYING";
+			},
+			() => {
+				document.removeEventListener("keydown", moveBird);
+			},
+		);
+		if (result) {
+			await playCongrat();
+			playApplause();
+			document.body.style.backgroundImage = "none";
+			document.body.style.backgroundColor = "black";
+			await displayScenes(outroScenes, {
+				fadeIn: true,
+				fadeOut: true,
+				fadeInDelay: 20,
+				fadeOutDelay: 2,
+			});
+		} else {
+			await playFailed();
+		}
+		await displayReplay();
+	} catch (err) {
+		console.error(err);
 	}
-	await displayReplay();
 };
 
 function playApplause() {
@@ -281,7 +287,7 @@ async function displayReplay() {
 			c.font = "100px Arial";
 			c.fillStyle = "yellow";
 			c.textAling = "center";
-			const readyText = "PLAY AGAIN?";
+			const readyText = LANGUAGE_DATA.AGAIN;
 			const readyTextWidth = c.measureText(readyText).width;
 			c.fillText(
 				readyText,
@@ -295,7 +301,7 @@ async function displayReplay() {
 }
 
 async function makeBackgroundImage() {
-	document.body.style.backgroundImage = "url('./bg_game2.svg')";
+	document.body.style.backgroundImage = "url('./assets/background.svg')";
 }
 
 let currentSceneIndex = 0;
@@ -303,28 +309,28 @@ let oldIntroSceneIndex = 0;
 
 const introScenes = [
 	{
-		name: "./intro/intro-01.svg",
+		name: `./assets/${LANGUAGE_DATA.CODE.toLowerCase()}/intro-01.svg`,
 		x: 0,
 		y: 0,
 		width: window.innerWidth,
 		height: window.innerHeight,
 	},
 	{
-		name: "./intro/intro-02.svg",
+		name: `./assets/${LANGUAGE_DATA.CODE.toLowerCase()}/intro-02.svg`,
 		x: 0,
 		y: 0,
 		width: window.innerWidth,
 		height: window.innerHeight,
 	},
 	{
-		name: "./intro/intro-03.svg",
+		name: `./assets/${LANGUAGE_DATA.CODE.toLowerCase()}/intro-03.svg`,
 		x: 0,
 		y: 0,
 		width: window.innerWidth,
 		height: window.innerHeight,
 	},
 	{
-		name: "./intro/intro-04.svg",
+		name: `./assets/${LANGUAGE_DATA.CODE.toLowerCase()}/intro-04.svg`,
 		x: 0,
 		y: 0,
 		width: window.innerWidth,
@@ -333,7 +339,7 @@ const introScenes = [
 ];
 const outroScenes = [
 	{
-		name: "./outro/outro-01.jpg",
+		name: `./assets/${LANGUAGE_DATA.CODE.toLowerCase()}/outro-01.jpg`,
 		x: 0,
 		y: 0,
 		width: window.innerWidth,
@@ -378,7 +384,6 @@ async function displayScenes(
 	function waitForKeyPress() {
 		return new Promise((resolve) => {
 			function onKeyPress(event) {
-				console.log("called here");
 				document.removeEventListener("keydown", onKeyPress);
 				resolve(event);
 			}
@@ -441,7 +446,7 @@ async function displayCountDown() {
 		switch (count) {
 			case 5:
 			case 4:
-				const readyText = "READY?";
+				const readyText = LANGUAGE_DATA.READY;
 				const readyTextWidth = context.measureText(readyText).width;
 				context.fillText(
 					readyText,
@@ -450,12 +455,20 @@ async function displayCountDown() {
 				);
 				break;
 			case 3:
+				context.fillText(
+					LANGUAGE_DATA.THREE,
+					board.width / 2,
+					board.height / 2,
+				);
+				break;
 			case 2:
+				context.fillText(LANGUAGE_DATA.TWO, board.width / 2, board.height / 2);
+				break;
 			case 1:
-				context.fillText(count, board.width / 2, board.height / 2);
+				context.fillText(LANGUAGE_DATA.ONE, board.width / 2, board.height / 2);
 				break;
 			case 0:
-				const goText = "START!";
+				const goText = LANGUAGE_DATA.START;
 				const goTextWidth = context.measureText(goText).width;
 				context.fillText(
 					goText,
@@ -483,20 +496,20 @@ async function initGame() {
 	};
 
 	topPipeImg = new Image();
-	topPipeImg.src = "./toppipe.svg";
+	topPipeImg.src = "./assets/obstacle.svg";
 
 	bottomPipeImg = new Image();
-	bottomPipeImg.src = "./toppipe.svg";
+	bottomPipeImg.src = topPipeImg.src;
 	document.addEventListener("keydown", moveBird);
 	currentProgress = 0;
 
 	progressBarImg = new Image();
-	progressBarImg.src = "./progressbar.svg";
+	progressBarImg.src = "./assets/progressbar.svg";
 
 	progressBarIconImg = new Image();
-	progressBarIconImg.src = "./progressbar_icon.svg";
+	progressBarIconImg.src = "./assets/progressbar_icon.svg";
 
-	setInterval(placePipes, 1000); //every 1.5 seconds
+	setInterval(placePipes, placePipeInterval); //every 1.5 seconds
 	requestAnimationFrame(gameLoop);
 }
 
@@ -616,6 +629,7 @@ function drawProgressBar(context, percent) {
 		window.innerWidth,
 		Math.abs(progressBar.height - window.innerHeight),
 	);
+
 	context.drawImage(
 		progressBarImg,
 		progressBar.x,
@@ -627,9 +641,8 @@ function drawProgressBar(context, percent) {
 	if (percent > 1) {
 		percent = 1;
 	}
-
-	const percentWidth = percent * progressBar.width;
-
+	const maxInnerWidth = progressBar.width - 12 - 15;
+	const percentWidth = percent * maxInnerWidth;
 	context.fillStyle = "green";
 	context.fillRect(
 		progressBar.x + 12,
