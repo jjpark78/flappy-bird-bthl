@@ -21,8 +21,8 @@ let bird = {
 
 //pipes
 let pipeArray = [];
-let pipeWidth = 120; //width/height ratio = 384/3072 = 1/8
-let pipeHeight = 512 + 100;
+let pipeWidth = 240; //width/height ratio = 384/3072 = 1/8
+let pipeHeight = 512 + 300;
 let pipeX = boardWidth;
 let pipeY = 0;
 
@@ -39,8 +39,8 @@ let gameEndOK = false;
 let score = 0;
 
 const GOAL_SCORE = 6;
-let placePipeInterval = 1500;
-const GAME_TOTAL_PROGRESS = 700;
+let placePipeInterval = 2500;
+const GAME_TOTAL_PROGRESS = 800;
 let currentProgress = 0;
 
 let progressBarImg;
@@ -186,7 +186,7 @@ async function playCongrat() {
 		setTimeout(() => {
 			message.style.opacity = 0;
 			cancelAnimationFrame(animationId);
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			//ctx.clearRect(0, 0, canvas.width, canvas.height);
 			resolve();
 		}, 6000);
 
@@ -197,7 +197,6 @@ async function playCongrat() {
 }
 
 window.onload = async function () {
-	//await playCongrat();
 	try {
 		await navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
 			const bgmPlayer = document.getElementById("bgmPlayer");
@@ -522,48 +521,61 @@ function moveBird(e) {
 	}
 }
 
-function placePipes() {
-	let pipeBottomFlag = Math.random() > 0.5 ? true : false;
-	let pipeTopFlag = Math.random() > 0.5 ? true : false;
-	if (!pipeBottomFlag && !pipeTopFlag) {
-		pipeTopFlag = true;
-		pipeBottomFlag = true;
+function getRandomInt() {
+	const random = Math.random();
+	if (random < 0.25) {
+		return 1;
+	} else if (random < 0.5) {
+		return 2;
+	} else if (random < 0.75) {
+		return 3;
+	} else {
+		return 4;
 	}
-	//if (pipeBottomFlag && pipeTopFlag) {
-	//	let centerPipe = {
-	//		img: topPipeImg,
-	//		x: pipeX,
-	//		y: window.innerHeight / 2,
-	//		width: pipeWidth,
-	//		height: 300,
-	//		passed: false,
-	//	};
-	//	pipeArray.push(centerPipe);
-	//} else {
-	let randomPipeY =
-		pipeY -
-		pipeHeight / 7 -
-		Math.min(Math.random() * Math.random(), 0.5) * (pipeHeight / 2);
-	let openingSpace = board.height / 5;
+}
+
+function placePipes() {
+	const randomOffGrid = getRandomInt();
+	const pipeYUnit = boardHeight / 4;
+	let topPipeY = 0;
+	let bottomPipeY = 0;
+	let openingSpace = pipeYUnit;
+	switch (randomOffGrid) {
+		case 1:
+			topPipeY = pipeHeight * -1.0 + 40;
+			bottomPipeY = boardHeight - pipeHeight + 120;
+			break;
+		case 2:
+			topPipeY = pipeHeight * -1.0 + pipeYUnit * 1;
+			bottomPipeY = openingSpace + pipeYUnit * 1;
+			break;
+		case 3:
+			topPipeY = pipeHeight * -1.0 + pipeYUnit * 2;
+			bottomPipeY = openingSpace + pipeYUnit * 2;
+			break;
+		case 4:
+			topPipeY = -100;
+			bottomPipeY = boardHeight - 40;
+			break;
+	}
 	let topPipe = {
 		img: topPipeImg,
 		x: pipeX,
-		y: randomPipeY,
+		y: topPipeY,
 		width: pipeWidth,
 		height: pipeHeight,
 		passed: false,
 	};
-	if (pipeTopFlag) pipeArray.push(topPipe);
 	let bottomPipe = {
 		img: bottomPipeImg,
 		x: pipeX,
-		y: randomPipeY + pipeHeight + openingSpace - 20,
+		y: bottomPipeY,
 		width: pipeWidth,
 		height: pipeHeight,
 		passed: false,
 	};
-	if (pipeBottomFlag) pipeArray.push(bottomPipe);
-	//}
+	pipeArray.push(topPipe);
+	pipeArray.push(bottomPipe);
 }
 
 function gameLoop() {
@@ -622,7 +634,7 @@ const progressBar = {
 };
 
 function drawProgressBar(context, percent) {
-	context.fillStyle = "gray";
+	context.fillStyle = "#FFFFFF";
 	context.fillRect(
 		0,
 		progressBar.y - 10,
@@ -643,7 +655,7 @@ function drawProgressBar(context, percent) {
 	}
 	const maxInnerWidth = progressBar.width - 12 - 15;
 	const percentWidth = percent * maxInnerWidth;
-	context.fillStyle = "green";
+	context.fillStyle = "#E7AA60";
 	context.fillRect(
 		progressBar.x + 12,
 		progressBar.y + 8,
